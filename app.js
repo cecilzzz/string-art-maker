@@ -1,7 +1,10 @@
 
 // 取得 index.html 裡的元素
+
 const canvas = document.getElementById('artCanvas');
 const ctx = canvas.getContext('2d');
+const previewCanvas = document.getElementById('previewCanvas');
+const previewCtx = previewCanvas.getContext('2d');
 const uploadInput = document.getElementById('imageUpload');
 const generateButton = document.getElementById('generate');
 const colorInput = document.getElementById('color');
@@ -20,16 +23,16 @@ function handleImageUpload(event) {
         reader.onload = function(e) {
             image.src = e.target.result;
             image.onload = () => {
-                // 將圖片等比縮放到 canvas
-                const maxW = canvas.width;
-                const maxH = canvas.height;
+                // 預覽canvas
+                const maxW = previewCanvas.width;
+                const maxH = previewCanvas.height;
                 let w = image.width;
                 let h = image.height;
                 const scale = Math.min(maxW / w, maxH / h, 1);
                 w = w * scale;
                 h = h * scale;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                previewCtx.drawImage(image, (previewCanvas.width - w) / 2, (previewCanvas.height - h) / 2, w, h);
                 imageLoaded = true;
             };
         };

@@ -8,22 +8,30 @@
 <body>
   <div class="container">
     <h1>字符串艺术生成器</h1>
-    <div id="upload-section">
-      <label for="imageUpload">上传图片:</label>
-      <input type="file" id="imageUpload" accept="image/*">
-    </div>
-    <canvas id="artCanvas" width="600" height="600"></canvas>
-    <div id="controls">
-      <label>
-        线条颜色:
-        <input id="color" type="color" value="#0074D9">
-      </label>
-      <label>
-        线条粗细:
-        <input id="thickness" type="number" min="1" max="10" value="1" style="width:50px;">
-      </label>
-      <button id="generate">生成字符串艺术</button>
-      <button id="download">下载 PNG</button>
+    <div id="ui-flex" style="display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start;">
+      <div id="upload-section" style="flex: 1 1 220px; min-width: 220px; max-width: 320px;">
+        <label for="imageUpload">上传图片:</label>
+        <input type="file" id="imageUpload" accept="image/*">
+        <div style="margin-top: 12px;">
+          <canvas id="previewCanvas" width="220" height="220" style="background:#f0f0f0; border:1px solid #ccc; border-radius:4px;"></canvas>
+        </div>
+      </div>
+      <div id="art-section" style="flex: 2 1 600px; min-width: 320px;">
+        <div style="margin-bottom: 8px; font-weight: bold;">生成的字符串艺术：</div>
+        <canvas id="artCanvas" width="600" height="600"></canvas>
+        <div id="controls" style="margin-top: 12px;">
+          <label>
+            线条颜色:
+            <input id="color" type="color" value="#0074D9">
+          </label>
+          <label>
+            线条粗细:
+            <input id="thickness" type="number" min="1" max="10" value="1" style="width:50px;">
+          </label>
+          <button id="generate">生成字符串艺术</button>
+          <button id="download">下载 PNG</button>
+        </div>
+      </div>
     </div>
     <div id="footer">© 2025 字符串艺术生成器 | Copilot Demo</div>
   </div>
