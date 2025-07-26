@@ -3,6 +3,7 @@
 
 const canvas = document.getElementById('artCanvas');
 const ctx = canvas.getContext('2d');
+const svg = document.getElementById('artSVG');
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const uploadInput = document.getElementById('imageUpload');
@@ -97,13 +98,22 @@ function drawStringArt() {
         ]);
     }
 
-    // 畫純灰色背景
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.fillStyle = '#888';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = lineWidth;
-    ctx.globalAlpha = 0.85;
+    // 清空 SVG 畫布，設置灰色背景
+    svg.innerHTML = '';
+    svg.setAttribute('width', canvas.width);
+    svg.setAttribute('height', canvas.height);
+    svg.style.background = '#888';
+
+    // 釘點可選：可加圓點顯示
+    // for (let i = 0; i < pointArray.length; i++) {
+    //     let [x, y] = pointArray[i];
+    //     let dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    //     dot.setAttribute('cx', x);
+    //     dot.setAttribute('cy', y);
+    //     dot.setAttribute('r', 1);
+    //     dot.setAttribute('fill', '#333');
+    //     svg.appendChild(dot);
+    // }
 
     let lastDrawn = 0;
     let worker = new Worker('lineWorker.js');
@@ -125,11 +135,18 @@ function drawStringArt() {
             const linesArr = e.data.lines;
             for (let i = lastDrawn; i < linesArr.length; i++) {
                 const [a, b, colorType] = linesArr[i];
-                ctx.beginPath();
-                ctx.moveTo(pointArray[a][0], pointArray[a][1]);
-                ctx.lineTo(pointArray[b][0], pointArray[b][1]);
-                ctx.strokeStyle = colorType === 'black' ? '#111' : '#fff';
-                ctx.stroke();
+                const [x1, y1] = pointArray[a];
+                const [x2, y2] = pointArray[b];
+                let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', colorType === 'black' ? '#111' : '#fff');
+                line.setAttribute('stroke-width', lineWidth);
+                line.setAttribute('stroke-linecap', 'round');
+                line.setAttribute('opacity', 0.85);
+                svg.appendChild(line);
             }
             lastDrawn = linesArr.length;
             // 自適應速度調整
@@ -145,11 +162,9 @@ function drawStringArt() {
             lastTime = now;
             lastLineCount = lastDrawn;
             if (e.data.finished) {
-                ctx.restore();
                 worker.terminate();
             }
         } else if (e.data.type === 'done') {
-            ctx.restore();
             worker.terminate();
         }
     };
