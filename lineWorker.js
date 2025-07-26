@@ -8,7 +8,7 @@ self.onmessage = function(e) {
         if (globalState) globalState.linesPerSecond = e.data.linesPerSecond;
         return;
     }
-    const { points, lines, width, height, pointArray, gray, linesPerSecond } = e.data;
+    const { points, lines, width, height, pointArray, origGray, accumGray, linesPerSecond } = e.data;
     // 緩存所有線段像素路徑，key唯一且雙向一致
     const pixelPaths = {};
     for (let i = 0; i < points; i++) {
@@ -22,7 +22,8 @@ self.onmessage = function(e) {
     }
     // 初始化
     let usedLines = new Set();
-    let grayArr = new Float32Array(gray);
+    let accumArr = new Float32Array(accumGray); // 當前累積灰度
+    let origArr = new Float32Array(origGray);   // 原圖灰度
     let resultLines = [];
     let l = 0;
     globalState = { linesPerSecond };
@@ -36,16 +37,18 @@ self.onmessage = function(e) {
             for (let key in pixelPaths) {
                 if (usedLines.has(key)) continue;
                 let scoreBlack = 0, scoreWhite = 0;
-                // 差分評分：計算加上這根線後，與原圖的像素差減少了多少
+                // 差分評分：加上這根線後，與原圖的像素差距減少量
                 for (const [x, y] of pixelPaths[key]) {
-                    // 黑線：像素值減少 30
-                    let before = grayArr[y * width + x];
+                    let idx = y * width + x;
+                    let before = accumArr[idx];
                     let afterBlack = Math.max(0, before - 30);
                     let afterWhite = Math.min(255, before + 30);
-                    // 黑線：減少的殘差
-                    scoreBlack += (before - afterBlack);
-                    // 白線：增加的殘差
-                    scoreWhite += (afterWhite - before);
+                    // 黑線：加上後殘差減少量
+                    let diffBefore = Math.abs(origArr[idx] - before);
+                    let diffAfterBlack = Math.abs(origArr[idx] - afterBlack);
+                    let diffAfterWhite = Math.abs(origArr[idx] - afterWhite);
+                    scoreBlack += (diffBefore - diffAfterBlack);
+                    scoreWhite += (diffBefore - diffAfterWhite);
                 }
                 if (scoreBlack > bestScore) {
                     bestScore = scoreBlack;
@@ -59,12 +62,13 @@ self.onmessage = function(e) {
                 }
             }
             if (!bestKey) break;
-            // 更新灰度
+            // 更新累積灰度
             for (const [x, y] of pixelPaths[bestKey]) {
+                let idx = y * width + x;
                 if (bestType === 'black') {
-                    grayArr[y * width + x] = Math.max(0, grayArr[y * width + x] - 30);
+                    accumArr[idx] = Math.max(0, accumArr[idx] - 30);
                 } else {
-                    grayArr[y * width + x] = Math.min(255, grayArr[y * width + x] + 30);
+                    accumArr[idx] = Math.min(255, accumArr[idx] + 30);
                 }
             }
             usedLines.add(bestKey);

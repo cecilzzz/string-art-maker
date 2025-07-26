@@ -80,12 +80,12 @@ function drawStringArt() {
 
     // 取得灰度圖像素
     const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const gray = new Float32Array(tempCanvas.width * tempCanvas.height);
-    for (let i = 0; i < gray.length; i++) {
+    const origGray = new Float32Array(tempCanvas.width * tempCanvas.height);
+    for (let i = 0; i < origGray.length; i++) {
         const r = imgData.data[i * 4];
         const g = imgData.data[i * 4 + 1];
         const b = imgData.data[i * 4 + 2];
-        gray[i] = 255 - (0.299 * r + 0.587 * g + 0.114 * b);
+        origGray[i] = 255 - (0.299 * r + 0.587 * g + 0.114 * b);
     }
 
     // 2. 計算釘點座標
@@ -124,13 +124,17 @@ function drawStringArt() {
     let linesPerSecond = 20;
     let lastTime = performance.now();
     let lastLineCount = 0;
+    // 初始累積灰度圖（全255，代表純灰背景）
+    const accumGray = new Float32Array(origGray.length);
+    for (let i = 0; i < accumGray.length; i++) accumGray[i] = 127; // 純灰色背景
     worker.postMessage({
         points,
         lines,
         width: tempCanvas.width,
         height: tempCanvas.height,
         pointArray,
-        gray: Array.from(gray),
+        origGray: Array.from(origGray),
+        accumGray: Array.from(accumGray),
         linesPerSecond
     });
     worker.onmessage = function(e) {
