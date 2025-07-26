@@ -78,29 +78,69 @@ function drawStringArt() {
     tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
     tempCtx.drawImage(image, (tempCanvas.width - w) / 2, (tempCanvas.height - h) / 2, w, h);
 
-    // 取得灰度圖像素，並做線性對比度增強
+    // 取得灰度圖像素，並做 Sobel 邊緣檢測與融合
     const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const origGray = new Float32Array(tempCanvas.width * tempCanvas.height);
+    const width = tempCanvas.width, height = tempCanvas.height;
+    const gray = new Float32Array(width * height);
     let minG = 255, maxG = 0;
-    for (let i = 0; i < origGray.length; i++) {
+    for (let i = 0; i < gray.length; i++) {
         const r = imgData.data[i * 4];
         const g = imgData.data[i * 4 + 1];
         const b = imgData.data[i * 4 + 2];
-        // 先算正向灰度
-        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        if (gray < minG) minG = gray;
-        if (gray > maxG) maxG = gray;
-        origGray[i] = gray;
+        let v = 0.299 * r + 0.587 * g + 0.114 * b;
+        gray[i] = v;
+        if (v < minG) minG = v;
+        if (v > maxG) maxG = v;
     }
-    // S型曲線對比增強（sigmoid），再反相（讓黑線優先覆蓋暗部）
-    const CONTRAST = 10.0; // 越大對比越強，建議 5~15
-    const MID = 0.5; // S型曲線中點
-    for (let i = 0; i < origGray.length; i++) {
-        let norm = (origGray[i] - minG) / (maxG - minG + 1e-6); // [0,1]
-        norm = Math.max(0, Math.min(1, norm));
-        // S型 sigmoid 曲線
-        norm = 1 / (1 + Math.exp(-CONTRAST * (norm - MID)));
-        origGray[i] = 255 - norm * 255;
+    // Sobel 邊緣檢測
+    const sobelX = [
+        [-1, 0, 1],
+        [-2, 0, 2],
+        [-1, 0, 1]
+    ];
+    const sobelY = [
+        [1, 2, 1],
+        [0, 0, 0],
+        [-1, -2, -1]
+    ];
+    function getGray(x, y) {
+        x = Math.max(0, Math.min(width - 1, x));
+        y = Math.max(0, Math.min(height - 1, y));
+        return gray[y * width + x];
+    }
+    const edge = new Float32Array(width * height);
+    let minE = 1e9, maxE = -1e9;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let gx = 0, gy = 0;
+            for (let ky = -1; ky <= 1; ky++) {
+                for (let kx = -1; kx <= 1; kx++) {
+                    let v = getGray(x + kx, y + ky);
+                    gx += sobelX[ky + 1][kx + 1] * v;
+                    gy += sobelY[ky + 1][kx + 1] * v;
+                }
+            }
+            let mag = Math.sqrt(gx * gx + gy * gy);
+            edge[y * width + x] = mag;
+            if (mag < minE) minE = mag;
+            if (mag > maxE) maxE = mag;
+        }
+    }
+    // 融合邊緣圖與灰度圖
+    const EDGE_WEIGHT = 0.7; // 輪廓強度 0~1
+    const origGray = new Float32Array(width * height);
+    for (let i = 0; i < gray.length; i++) {
+        // 歸一化
+        let gNorm = (gray[i] - minG) / (maxG - minG + 1e-6);
+        let eNorm = (edge[i] - minE) / (maxE - minE + 1e-6);
+        // 融合
+        let v = (1 - EDGE_WEIGHT) * gNorm + EDGE_WEIGHT * eNorm;
+        // S型曲線對比增強
+        const CONTRAST = 10.0;
+        const MID = 0.5;
+        v = 1 / (1 + Math.exp(-CONTRAST * (v - MID)));
+        // 反相
+        origGray[i] = 255 - v * 255;
     }
 
     // 2. 計算釘點座標（全部基於降採樣後的 canvas）
