@@ -1,9 +1,9 @@
 
 // 取得 index.html 裡的元素
 
-// const canvas = document.getElementById('artCanvas');
-// const ctx = canvas.getContext('2d');
-const svg = document.getElementById('artSVG');
+const canvas = document.getElementById('artCanvas');
+const ctx = canvas.getContext('2d');
+const svg = document.getElementById('artSVG'); // 保留但不再用於主動畫
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const uploadInput = document.getElementById('imageUpload');
@@ -101,11 +101,16 @@ function drawStringArt() {
         ]);
     }
 
-    // 清空 SVG 畫布，設置灰色背景
-    svg.innerHTML = '';
-    svg.setAttribute('width', svgW);
-    svg.setAttribute('height', svgH);
-    svg.style.background = '#888';
+    // 清空 Canvas 畫布，設置灰色背景
+    canvas.width = svgW;
+    canvas.height = svgH;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // svg.innerHTML = '';
+    // svg.setAttribute('width', svgW);
+    // svg.setAttribute('height', svgH);
+    // svg.style.background = '#888';
 
     // 釘點可選：可加圓點顯示
     // for (let i = 0; i < pointArray.length; i++) {
@@ -118,7 +123,7 @@ function drawStringArt() {
     //     svg.appendChild(dot);
     // }
 
-    let lastDrawn = 0;
+    // let lastDrawn = 0; // 移除，canvas 動畫流程內已宣告
     let worker = new Worker('lineWorker.js');
     // 自適應速度
     let linesPerSecond = 20;
@@ -144,76 +149,115 @@ function drawStringArt() {
             (y / dsH) * svgH
         ];
     }
-    // D3.js 動畫繪製隊列（累積式）
-    if (window.d3 === undefined) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
-        script.onload = startD3Drawing;
-        document.head.appendChild(script);
-    } else {
-        startD3Drawing();
+    // Canvas 動畫繪製隊列（累積式）
+        // let allLines = [];
+        // let lastDrawn = 0;
+        // let drawing = false;
+        // const DRAW_BATCH = 8;
+    // 2D 變換狀態
+    let view = { scale: 1, offsetX: 0, offsetY: 0 };
+    // 交互事件
+    let isDragging = false, dragStart = {x:0, y:0}, dragOrigin = {x:0, y:0};
+    canvas.onwheel = function(e) {
+        e.preventDefault();
+        const scaleAmount = e.deltaY < 0 ? 1.1 : 0.9;
+        // 滾輪縮放以滑鼠為中心
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left - view.offsetX) / view.scale;
+        const my = (e.clientY - rect.top - view.offsetY) / view.scale;
+        view.scale *= scaleAmount;
+        view.offsetX -= (mx * scaleAmount - mx) * view.scale;
+        view.offsetY -= (my * scaleAmount - my) * view.scale;
+        redrawAll();
+    };
+    canvas.onmousedown = function(e) {
+        isDragging = true;
+        dragStart.x = e.clientX;
+        dragStart.y = e.clientY;
+        dragOrigin.x = view.offsetX;
+        dragOrigin.y = view.offsetY;
+    };
+    window.onmousemove = function(e) {
+        if (!isDragging) return;
+        view.offsetX = dragOrigin.x + (e.clientX - dragStart.x);
+        view.offsetY = dragOrigin.y + (e.clientY - dragStart.y);
+        redrawAll();
+    };
+    window.onmouseup = function() { isDragging = false; };
+
+    function redrawAll() {
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#888';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.setTransform(view.scale,0,0,view.scale,view.offsetX,view.offsetY);
+        // 畫所有線條
+        for (let i = 0; i < allLines.length; i++) {
+            const d = allLines[i];
+            const [x1, y1] = mapToSVG(pointArray[d[0]]);
+            const [x2, y2] = mapToSVG(pointArray[d[1]]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = d[2] === 'black' ? '#fff' : '#111';
+            ctx.globalAlpha = 0.85;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
     }
 
-    function startD3Drawing() {
-        const d3svg = d3.select(svg);
-        d3svg.selectAll('*').remove();
-        // 分組
-        const g = d3svg.append('g');
-        let allLines = [];
-        let lastDrawn = 0;
-        let drawing = false;
-        const DRAW_BATCH = 8;
-        function drawNextBatch() {
-            if (lastDrawn >= allLines.length) {
-                drawing = false;
-                return;
-            }
-            drawing = true;
-            const end = Math.min(lastDrawn + DRAW_BATCH, allLines.length);
-            const batch = allLines.slice(lastDrawn, end);
-            // 只 append 新線條，不用 join，確保平滑增長
-            g.selectAll(null)
-                .data(batch)
-                .enter()
-                .append('line')
-                .attr('class', 'temp')
-                .attr('x1', d => mapToSVG(pointArray[d[0]])[0])
-                .attr('y1', d => mapToSVG(pointArray[d[0]])[1])
-                .attr('x2', d => mapToSVG(pointArray[d[1]])[0])
-                .attr('y2', d => mapToSVG(pointArray[d[1]])[1])
-                .attr('stroke', d => d[2] === 'black' ? '#fff' : '#111')
-                .attr('stroke-width', lineWidth)
-                .attr('stroke-linecap', 'round')
-                .attr('opacity', 0.85);
-            lastDrawn = end;
-            requestAnimationFrame(drawNextBatch);
+    function drawNextBatch() {
+        if (lastDrawn >= allLines.length) {
+            drawing = false;
+            return;
         }
-        worker.onmessage = function(e) {
-            if (e.data.type === 'progress') {
-                const linesArr = e.data.lines;
-                // 將新線條累積到 allLines
-                for (let i = allLines.length; i < linesArr.length; i++) {
-                    allLines.push(linesArr[i]);
-                }
-                if (!drawing) drawNextBatch();
-                // 自適應速度調整（保留worker內部）
-                const now = performance.now();
-                const dt = now - lastTime;
-                const drawn = allLines.length - lastLineCount;
-                if (dt > 0 && drawn > 0) {
-                    let actualLPS = drawn / (dt / 1000);
-                    if (actualLPS < 15) linesPerSecond = Math.max(2, linesPerSecond - 2);
-                    else if (actualLPS > 30) linesPerSecond = Math.min(100, linesPerSecond + 5);
-                    worker.postMessage({ type: 'setLPS', linesPerSecond });
-                }
-                lastTime = now;
-                lastLineCount = allLines.length;
-                if (e.data.finished) {
-                    worker.terminate();
-                }
-            } else if (e.data.type === 'done') {
+        drawing = true;
+        const end = Math.min(lastDrawn + DRAW_BATCH, allLines.length);
+        for (let i = lastDrawn; i < end; i++) {
+            const d = allLines[i];
+            const [x1, y1] = mapToSVG(pointArray[d[0]]);
+            const [x2, y2] = mapToSVG(pointArray[d[1]]);
+            ctx.save();
+            ctx.setTransform(view.scale,0,0,view.scale,view.offsetX,view.offsetY);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = d[2] === 'black' ? '#fff' : '#111';
+            ctx.globalAlpha = 0.85;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            ctx.restore();
+        }
+        lastDrawn = end;
+        requestAnimationFrame(drawNextBatch);
+    }
+    worker.onmessage = function(e) {
+        if (e.data.type === 'progress') {
+            const linesArr = e.data.lines;
+            for (let i = allLines.length; i < linesArr.length; i++) {
+                allLines.push(linesArr[i]);
+            }
+            if (!drawing) drawNextBatch();
+            // 自適應速度調整（保留worker內部）
+            const now = performance.now();
+            const dt = now - lastTime;
+            const drawn = allLines.length - lastLineCount;
+            if (dt > 0 && drawn > 0) {
+                let actualLPS = drawn / (dt / 1000);
+                if (actualLPS < 15) linesPerSecond = Math.max(2, linesPerSecond - 2);
+                else if (actualLPS > 30) linesPerSecond = Math.min(100, linesPerSecond + 5);
+                worker.postMessage({ type: 'setLPS', linesPerSecond });
+            }
+            lastTime = now;
+            lastLineCount = allLines.length;
+            if (e.data.finished) {
                 worker.terminate();
             }
-        };
-    }
+        } else if (e.data.type === 'done') {
+            worker.terminate();
+        }
+    };
 }
