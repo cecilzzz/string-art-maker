@@ -1,49 +1,100 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>字符串艺术生成器</title>
+  <title>String Art Generator</title>
+  <meta name="description" content="Create beautiful string art from your photos with our interactive web tool!">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
-    <h1>字符串艺术生成器</h1>
+    <h1>String Art Generator</h1>
+    <p style="text-align:center; max-width:580px; margin: 0 auto 24px; color:#333;">
+      Turn your photos into mesmerizing string art! Upload an image, adjust parameters, and download your unique digital artwork.
+    </p>
     <div id="ui-flex" style="display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start;">
       <div id="upload-section" style="flex: 1 1 220px; min-width: 220px; max-width: 320px;">
-        <label for="imageUpload">上传图片:</label>
+        <label for="imageUpload"><strong>Upload Image:</strong></label>
         <input type="file" id="imageUpload" accept="image/*">
         <div style="margin-top: 12px;">
           <canvas id="previewCanvas" width="220" height="220" style="background:#f0f0f0; border:1px solid #ccc; border-radius:4px;"></canvas>
         </div>
       </div>
       <div id="art-section" style="flex: 2 1 600px; min-width: 320px;">
-        <div style="margin-bottom: 8px; font-weight: bold;">生成的字符串艺术：</div>
+        <div style="margin-bottom: 8px; font-weight: bold;">Generated String Art:</div>
         <canvas id="artCanvas" width="600" height="600" style="display:block;position:relative;z-index:2;background:#888;"></canvas>
         <svg id="artSVG" width="600" height="600" style="display:none;"></svg>
         <div id="controls" style="margin-top: 12px;">
           <label>
-            线条颜色:
+            Line Color:
             <input id="color" type="color" value="#0074D9">
           </label>
           <label>
-            线条粗细:
+            Line Thickness:
             <input id="thickness" type="number" min="0.1" max="2" step="0.1" value="0.3" style="width:60px;">
           </label>
           <label>
-            线条总数:
+            Total Lines:
             <input id="lines" type="number" min="100" max="2000" value="800" style="width:70px;">
           </label>
           <label>
-            釘點数量:
+            Pins Count:
             <input id="points" type="number" min="60" max="300" value="200" style="width:70px;">
           </label>
-          <button id="generate">生成字符串艺术</button>
-          <button id="download">下载 PNG</button>
+          <button id="generate">Generate String Art</button>
+          <button id="download">Download PNG</button>
         </div>
       </div>
     </div>
-    <div id="footer">© 2025 字符串艺术生成器 | Copilot Demo</div>
+
+    <section style="margin-top: 40px;">
+      <h2 style="text-align:center;">Frequently Asked Questions</h2>
+
+      <div style="max-width: 650px; margin: 0 auto;">
+        <h3>What is string art?</h3>
+        <p>
+          String art is a form of art that creates images using straight lines of thread or wire stretched between points. The arrangement of lines forms intricate patterns and beautiful visuals.
+        </p>
+
+        <h3>How does this tool work?</h3>
+        <p>
+          This tool analyzes your uploaded image, detects edges, and generates a set of lines connecting pins placed around a circle. The result is a digital string art that resembles your original photo.
+        </p>
+
+        <h3>What images work best?</h3>
+        <p>
+          High-contrast and simple images (such as portraits or icons) produce the clearest results. Busy backgrounds or low-contrast photos may be less recognizable in string form.
+        </p>
+
+        <h3>How can I customize my string art?</h3>
+        <ul>
+          <li><b>Line Color</b>: Change the color of the strings for a personalized look.</li>
+          <li><b>Line Thickness</b>: Control the width of each string line.</li>
+          <li><b>Total Lines</b>: More lines give finer details, while fewer lines produce a simpler effect.</li>
+          <li><b>Pins Count</b>: Adjust the number of pins around the edge. More pins allow more detailed images.</li>
+        </ul>
+
+        <h3>Can I download my artwork?</h3>
+        <p>
+          Yes! Click <b>Download PNG</b> to save your generated string art as a PNG image.
+        </p>
+
+        <h3>Is my image stored or shared?</h3>
+        <p>
+          No. All image processing is done in your browser. Your images are never uploaded to any server.
+        </p>
+
+        <h3>Any tips for best results?</h3>
+        <ul>
+          <li>Cropping your image to focus on the subject can help.</li>
+          <li>Try different settings: sometimes fewer lines or pins look better for certain images.</li>
+          <li>Use high-contrast, simple backgrounds if possible.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div id="footer">© 2025 String Art Generator | Copilot Demo</div>
   </div>
-    <script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
