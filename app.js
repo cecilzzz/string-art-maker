@@ -78,14 +78,28 @@ function drawStringArt() {
     tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
     tempCtx.drawImage(image, (tempCanvas.width - w) / 2, (tempCanvas.height - h) / 2, w, h);
 
-    // 取得灰度圖像素
+    // 取得灰度圖像素，並做線性對比度增強
     const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const origGray = new Float32Array(tempCanvas.width * tempCanvas.height);
+    let minG = 255, maxG = 0;
     for (let i = 0; i < origGray.length; i++) {
         const r = imgData.data[i * 4];
         const g = imgData.data[i * 4 + 1];
         const b = imgData.data[i * 4 + 2];
-        origGray[i] = 255 - (0.299 * r + 0.587 * g + 0.114 * b);
+        // 先算正向灰度
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (gray < minG) minG = gray;
+        if (gray > maxG) maxG = gray;
+        origGray[i] = gray;
+    }
+    // 線性拉伸到 [0,255]，再反相（讓黑線優先覆蓋暗部）
+    for (let i = 0; i < origGray.length; i++) {
+        let norm = (origGray[i] - minG) / (maxG - minG + 1e-6); // [0,1]
+        norm = Math.max(0, Math.min(1, norm));
+        // 可調整對比度（1.0=原始，>1增強，<1降低）
+        const CONTRAST = 1.3;
+        norm = Math.pow(norm, 1/CONTRAST); // gamma校正
+        origGray[i] = 255 - norm * 255;
     }
 
     // 2. 計算釘點座標（全部基於降採樣後的 canvas）
@@ -161,13 +175,15 @@ function drawStringArt() {
     canvas.onwheel = function(e) {
         e.preventDefault();
         const scaleAmount = e.deltaY < 0 ? 1.1 : 0.9;
-        // 滾輪縮放以滑鼠為中心
         const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left - view.offsetX) / view.scale;
-        const my = (e.clientY - rect.top - view.offsetY) / view.scale;
+        // 畫布座標（縮放前）
+        const px = (e.clientX - rect.left - view.offsetX) / view.scale;
+        const py = (e.clientY - rect.top - view.offsetY) / view.scale;
+        // 更新縮放
         view.scale *= scaleAmount;
-        view.offsetX -= (mx * scaleAmount - mx) * view.scale;
-        view.offsetY -= (my * scaleAmount - my) * view.scale;
+        // 新的畫布偏移，確保縮放後鼠標對應畫布點不變
+        view.offsetX = e.clientX - rect.left - px * view.scale;
+        view.offsetY = e.clientY - rect.top - py * view.scale;
         redrawAll();
     };
     canvas.onmousedown = function(e) {
