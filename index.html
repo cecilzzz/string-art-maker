@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>字符串艺术生成器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>字符串艺术生成器</h1>
+    <div id="upload-section">
+      <label for="imageUpload">上传图片:</label>
+      <input type="file" id="imageUpload" accept="image/*">
+    </div>
+    <canvas id="artCanvas" width="600" height="600"></canvas>
+    <div id="controls">
+      <label>
+        线条颜色:
+        <input id="color" type="color" value="#0074D9">
+      </label>
+      <label>
+        线条粗细:
+        <input id="thickness" type="number" min="1" max="10" value="1" style="width:50px;">
+      </label>
+      <button id="generate">生成字符串艺术</button>
+      <button id="download">下载 PNG</button>
+    </div>
+    <div id="footer">© 2025 字符串艺术生成器 | Copilot Demo</div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
