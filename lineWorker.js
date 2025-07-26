@@ -9,12 +9,15 @@ self.onmessage = function(e) {
         return;
     }
     const { points, lines, width, height, pointArray, gray, linesPerSecond } = e.data;
-    // 緩存所有線段像素路徑
+    // 緩存所有線段像素路徑，key唯一且雙向一致
     const pixelPaths = {};
     for (let i = 0; i < points; i++) {
-        for (let j = i + 1; j < points; j++) {
-            const key = `${i}-${j}`;
-            pixelPaths[key] = getLinePixels(pointArray[i], pointArray[j], width, height);
+        for (let j = 0; j < points; j++) {
+            if (i === j) continue;
+            const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+            if (!pixelPaths[key]) {
+                pixelPaths[key] = getLinePixels(pointArray[i], pointArray[j], width, height);
+            }
         }
     }
     // 初始化
@@ -33,9 +36,16 @@ self.onmessage = function(e) {
             for (let key in pixelPaths) {
                 if (usedLines.has(key)) continue;
                 let scoreBlack = 0, scoreWhite = 0;
+                // 差分評分：計算加上這根線後，與原圖的像素差減少了多少
                 for (const [x, y] of pixelPaths[key]) {
-                    scoreBlack += grayArr[y * width + x];
-                    scoreWhite += (255 - grayArr[y * width + x]);
+                    // 黑線：像素值減少 30
+                    let before = grayArr[y * width + x];
+                    let afterBlack = Math.max(0, before - 30);
+                    let afterWhite = Math.min(255, before + 30);
+                    // 黑線：減少的殘差
+                    scoreBlack += (before - afterBlack);
+                    // 白線：增加的殘差
+                    scoreWhite += (afterWhite - before);
                 }
                 if (scoreBlack > bestScore) {
                     bestScore = scoreBlack;

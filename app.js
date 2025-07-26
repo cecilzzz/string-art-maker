@@ -60,18 +60,19 @@ function drawStringArt() {
     const color = colorInput.value || '#0074D9';
     const lineWidth = parseFloat(thicknessInput.value) || 0.3;
 
-    // 1. 取得圖片灰度資料
+    // 1. 取得圖片灰度資料（降採樣）
     const svgW = svg.getAttribute('width') ? parseInt(svg.getAttribute('width'), 10) : 600;
     const svgH = svg.getAttribute('height') ? parseInt(svg.getAttribute('height'), 10) : 600;
+    const DOWNSCALE = 4; // 降採樣倍率
+    const dsW = Math.floor(svgW / DOWNSCALE);
+    const dsH = Math.floor(svgH / DOWNSCALE);
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = svgW;
-    tempCanvas.height = svgH;
+    tempCanvas.width = dsW;
+    tempCanvas.height = dsH;
     const tempCtx = tempCanvas.getContext('2d');
-    const maxW = svgW;
-    const maxH = svgH;
     let w = image.width;
     let h = image.height;
-    const scale = Math.min(maxW / w, maxH / h, 1);
+    const scale = Math.min(dsW / w, dsH / h, 1);
     w = w * scale;
     h = h * scale;
     tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
