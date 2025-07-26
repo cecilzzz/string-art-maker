@@ -1,8 +1,8 @@
 
 // 取得 index.html 裡的元素
 
-const canvas = document.getElementById('artCanvas');
-const ctx = canvas.getContext('2d');
+// const canvas = document.getElementById('artCanvas');
+// const ctx = canvas.getContext('2d');
 const svg = document.getElementById('artSVG');
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
@@ -61,12 +61,14 @@ function drawStringArt() {
     const lineWidth = parseFloat(thicknessInput.value) || 0.3;
 
     // 1. 取得圖片灰度資料
+    const svgW = svg.getAttribute('width') ? parseInt(svg.getAttribute('width'), 10) : 600;
+    const svgH = svg.getAttribute('height') ? parseInt(svg.getAttribute('height'), 10) : 600;
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
+    tempCanvas.width = svgW;
+    tempCanvas.height = svgH;
     const tempCtx = tempCanvas.getContext('2d');
-    const maxW = canvas.width;
-    const maxH = canvas.height;
+    const maxW = svgW;
+    const maxH = svgH;
     let w = image.width;
     let h = image.height;
     const scale = Math.min(maxW / w, maxH / h, 1);
@@ -86,8 +88,8 @@ function drawStringArt() {
     }
 
     // 2. 計算釘點座標
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const centerX = svgW / 2;
+    const centerY = svgH / 2;
     const radius = Math.min(centerX, centerY) - 20;
     const pointArray = [];
     for (let i = 0; i < points; i++) {
@@ -100,8 +102,8 @@ function drawStringArt() {
 
     // 清空 SVG 畫布，設置灰色背景
     svg.innerHTML = '';
-    svg.setAttribute('width', canvas.width);
-    svg.setAttribute('height', canvas.height);
+    svg.setAttribute('width', svgW);
+    svg.setAttribute('height', svgH);
     svg.style.background = '#888';
 
     // 釘點可選：可加圓點顯示
