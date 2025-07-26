@@ -49,8 +49,11 @@ function drawStringArt() {
     const lineWidth = parseInt(thicknessInput.value, 10) || 1;
 
     // 1. 取得圖片灰度資料
-    // 先將圖片等比縮放繪製到 canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 先將圖片等比縮放繪製到暫存canvas
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
     const maxW = canvas.width;
     const maxH = canvas.height;
     let w = image.width;
@@ -58,11 +61,12 @@ function drawStringArt() {
     const scale = Math.min(maxW / w, maxH / h, 1);
     w = w * scale;
     h = h * scale;
-    ctx.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    tempCtx.drawImage(image, (tempCanvas.width - w) / 2, (tempCanvas.height - h) / 2, w, h);
 
     // 取得灰度圖像素
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const gray = new Float32Array(canvas.width * canvas.height);
+    const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const gray = new Float32Array(tempCanvas.width * tempCanvas.height);
     for (let i = 0; i < gray.length; i++) {
         const r = imgData.data[i * 4];
         const g = imgData.data[i * 4 + 1];
@@ -88,7 +92,6 @@ function drawStringArt() {
     let current = 0;
     const usedLines = new Set();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
@@ -110,8 +113,8 @@ function drawStringArt() {
             for (let s = 0; s <= steps; s++) {
                 const x = Math.round(x0 + (x1 - x0) * s / steps);
                 const y = Math.round(y0 + (y1 - y0) * s / steps);
-                if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
-                    score += gray[y * canvas.width + x];
+                if (x >= 0 && x < tempCanvas.width && y >= 0 && y < tempCanvas.height) {
+                    score += gray[y * tempCanvas.width + x];
                 }
             }
             if (score > bestScore) {
@@ -132,8 +135,8 @@ function drawStringArt() {
         for (let s = 0; s <= steps; s++) {
             const x = Math.round(x0 + (x1 - x0) * s / steps);
             const y = Math.round(y0 + (y1 - y0) * s / steps);
-            if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
-                gray[y * canvas.width + x] *= 0.7; // 每次線條覆蓋就變亮
+            if (x >= 0 && x < tempCanvas.width && y >= 0 && y < tempCanvas.height) {
+                gray[y * tempCanvas.width + x] *= 0.7; // 每次線條覆蓋就變亮
             }
         }
         usedLines.add(current < bestIdx ? `${current}-${bestIdx}` : `${bestIdx}-${current}`);
