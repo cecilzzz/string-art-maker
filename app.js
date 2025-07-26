@@ -127,7 +127,7 @@ function drawStringArt() {
         }
     }
     // 融合邊緣圖與灰度圖（細節保留）
-    const EDGE_WEIGHT = 0.25; // 輪廓強度 0~1，建議0.2~0.3
+    const EDGE_WEIGHT = 0.3; // 輪廓強度 0~1，略提升，讓輪廓更突出
     const origGray = new Float32Array(width * height);
     for (let i = 0; i < gray.length; i++) {
         // 歸一化
@@ -138,7 +138,7 @@ function drawStringArt() {
         // 融合
         let v = (1 - EDGE_WEIGHT) * gNorm + EDGE_WEIGHT * eNorm;
         // S型曲線對比增強（溫和）
-        const CONTRAST = 6.0;
+        const CONTRAST = 8.0; // 提升對比度，讓層次更明顯
         const MID = 0.5;
         v = 1 / (1 + Math.exp(-CONTRAST * (v - MID)));
         // 反相
