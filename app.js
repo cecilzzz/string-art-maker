@@ -88,16 +88,16 @@ function drawStringArt() {
         origGray[i] = 255 - (0.299 * r + 0.587 * g + 0.114 * b);
     }
 
-    // 2. 計算釘點座標
-    const centerX = svgW / 2;
-    const centerY = svgH / 2;
-    const radius = Math.min(centerX, centerY) - 20;
+    // 2. 計算釘點座標（全部基於降採樣後的 canvas）
+    const dsCenterX = dsW / 2;
+    const dsCenterY = dsH / 2;
+    const dsRadius = Math.min(dsCenterX, dsCenterY) - 4; // 留邊界
     const pointArray = [];
     for (let i = 0; i < points; i++) {
         const angle = (2 * Math.PI * i) / points - Math.PI / 2;
         pointArray.push([
-            centerX + radius * Math.cos(angle),
-            centerY + radius * Math.sin(angle)
+            dsCenterX + dsRadius * Math.cos(angle),
+            dsCenterY + dsRadius * Math.sin(angle)
         ]);
     }
 
@@ -137,13 +137,20 @@ function drawStringArt() {
         accumGray: Array.from(accumGray),
         linesPerSecond
     });
+    // SVG繪製時將降採樣釘點映射回SVG座標
+    function mapToSVG([x, y]) {
+        return [
+            (x / dsW) * svgW,
+            (y / dsH) * svgH
+        ];
+    }
     worker.onmessage = function(e) {
         if (e.data.type === 'progress') {
             const linesArr = e.data.lines;
             for (let i = lastDrawn; i < linesArr.length; i++) {
                 const [a, b, colorType] = linesArr[i];
-                const [x1, y1] = pointArray[a];
-                const [x2, y2] = pointArray[b];
+                const [x1, y1] = mapToSVG(pointArray[a]);
+                const [x2, y2] = mapToSVG(pointArray[b]);
                 let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', x1);
                 line.setAttribute('y1', y1);
