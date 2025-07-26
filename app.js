@@ -144,7 +144,7 @@ function drawStringArt() {
             (y / dsH) * svgH
         ];
     }
-    // D3.js 動畫繪製隊列
+    // D3.js 動畫繪製隊列（累積式）
     if (window.d3 === undefined) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
@@ -159,21 +159,21 @@ function drawStringArt() {
         d3svg.selectAll('*').remove();
         // 分組
         const g = d3svg.append('g');
-        let drawQueue = [];
+        let allLines = [];
+        let lastDrawn = 0;
         let drawing = false;
         const DRAW_BATCH = 8;
         function drawNextBatch() {
-            if (drawQueue.length === 0) {
+            if (lastDrawn >= allLines.length) {
                 drawing = false;
                 return;
             }
             drawing = true;
-            const batch = drawQueue.splice(0, DRAW_BATCH);
-            // D3 批量插入
+            const end = Math.min(lastDrawn + DRAW_BATCH, allLines.length);
+            // D3 join所有已生成線條
             g.selectAll('line.temp')
-                .data(batch)
-                .enter()
-                .append('line')
+                .data(allLines)
+                .join('line')
                 .attr('class', 'temp')
                 .attr('x1', d => mapToSVG(pointArray[d[0]])[0])
                 .attr('y1', d => mapToSVG(pointArray[d[0]])[1])
@@ -183,20 +183,21 @@ function drawStringArt() {
                 .attr('stroke-width', lineWidth)
                 .attr('stroke-linecap', 'round')
                 .attr('opacity', 0.85);
+            lastDrawn = end;
             requestAnimationFrame(drawNextBatch);
         }
         worker.onmessage = function(e) {
             if (e.data.type === 'progress') {
                 const linesArr = e.data.lines;
-                for (let i = lastDrawn; i < linesArr.length; i++) {
-                    drawQueue.push(linesArr[i]);
+                // 將新線條累積到 allLines
+                for (let i = allLines.length; i < linesArr.length; i++) {
+                    allLines.push(linesArr[i]);
                 }
-                lastDrawn = linesArr.length;
                 if (!drawing) drawNextBatch();
                 // 自適應速度調整（保留worker內部）
                 const now = performance.now();
                 const dt = now - lastTime;
-                const drawn = lastDrawn - lastLineCount;
+                const drawn = allLines.length - lastLineCount;
                 if (dt > 0 && drawn > 0) {
                     let actualLPS = drawn / (dt / 1000);
                     if (actualLPS < 15) linesPerSecond = Math.max(2, linesPerSecond - 2);
@@ -204,7 +205,7 @@ function drawStringArt() {
                     worker.postMessage({ type: 'setLPS', linesPerSecond });
                 }
                 lastTime = now;
-                lastLineCount = lastDrawn;
+                lastLineCount = allLines.length;
                 if (e.data.finished) {
                     worker.terminate();
                 }
@@ -213,34 +214,4 @@ function drawStringArt() {
             }
         };
     }
-
-    worker.onmessage = function(e) {
-        if (e.data.type === 'progress') {
-            const linesArr = e.data.lines;
-            // 將新線條加入繪製隊列
-            for (let i = lastDrawn; i < linesArr.length; i++) {
-                drawQueue.push(linesArr[i]);
-            }
-            lastDrawn = linesArr.length;
-            // 平滑啟動動畫
-            if (!drawing) drawNextBatch();
-            // 自適應速度調整（保留worker內部）
-            const now = performance.now();
-            const dt = now - lastTime;
-            const drawn = lastDrawn - lastLineCount;
-            if (dt > 0 && drawn > 0) {
-                let actualLPS = drawn / (dt / 1000);
-                if (actualLPS < 15) linesPerSecond = Math.max(2, linesPerSecond - 2);
-                else if (actualLPS > 30) linesPerSecond = Math.min(100, linesPerSecond + 5);
-                worker.postMessage({ type: 'setLPS', linesPerSecond });
-            }
-            lastTime = now;
-            lastLineCount = lastDrawn;
-            if (e.data.finished) {
-                worker.terminate();
-            }
-        } else if (e.data.type === 'done') {
-            worker.terminate();
-        }
-    };
 }
