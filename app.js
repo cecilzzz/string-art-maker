@@ -144,34 +144,74 @@ function drawStringArt() {
             (y / dsH) * svgH
         ];
     }
-    // 動畫繪製隊列
-    let drawQueue = [];
-    let drawing = false;
-    const DRAW_BATCH = 8; // 每幀繪製線條數
+    // D3.js 動畫繪製隊列
+    if (window.d3 === undefined) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+        script.onload = startD3Drawing;
+        document.head.appendChild(script);
+    } else {
+        startD3Drawing();
+    }
 
-    function drawNextBatch() {
-        if (drawQueue.length === 0) {
-            drawing = false;
-            return;
+    function startD3Drawing() {
+        const d3svg = d3.select(svg);
+        d3svg.selectAll('*').remove();
+        // 分組
+        const g = d3svg.append('g');
+        let drawQueue = [];
+        let drawing = false;
+        const DRAW_BATCH = 8;
+        function drawNextBatch() {
+            if (drawQueue.length === 0) {
+                drawing = false;
+                return;
+            }
+            drawing = true;
+            const batch = drawQueue.splice(0, DRAW_BATCH);
+            // D3 批量插入
+            g.selectAll('line.temp')
+                .data(batch)
+                .enter()
+                .append('line')
+                .attr('class', 'temp')
+                .attr('x1', d => mapToSVG(pointArray[d[0]])[0])
+                .attr('y1', d => mapToSVG(pointArray[d[0]])[1])
+                .attr('x2', d => mapToSVG(pointArray[d[1]])[0])
+                .attr('y2', d => mapToSVG(pointArray[d[1]])[1])
+                .attr('stroke', d => d[2] === 'black' ? '#fff' : '#111')
+                .attr('stroke-width', lineWidth)
+                .attr('stroke-linecap', 'round')
+                .attr('opacity', 0.85);
+            requestAnimationFrame(drawNextBatch);
         }
-        drawing = true;
-        for (let i = 0; i < DRAW_BATCH && drawQueue.length > 0; i++) {
-            const [a, b, colorType] = drawQueue.shift();
-            const [x1, y1] = mapToSVG(pointArray[a]);
-            const [x2, y2] = mapToSVG(pointArray[b]);
-            let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            // 反轉黑白顏色
-            line.setAttribute('stroke', colorType === 'black' ? '#fff' : '#111');
-            line.setAttribute('x1', x1);
-            line.setAttribute('y1', y1);
-            line.setAttribute('x2', x2);
-            line.setAttribute('y2', y2);
-            line.setAttribute('stroke-width', lineWidth);
-            line.setAttribute('stroke-linecap', 'round');
-            line.setAttribute('opacity', 0.85);
-            svg.appendChild(line);
-        }
-        requestAnimationFrame(drawNextBatch);
+        worker.onmessage = function(e) {
+            if (e.data.type === 'progress') {
+                const linesArr = e.data.lines;
+                for (let i = lastDrawn; i < linesArr.length; i++) {
+                    drawQueue.push(linesArr[i]);
+                }
+                lastDrawn = linesArr.length;
+                if (!drawing) drawNextBatch();
+                // 自適應速度調整（保留worker內部）
+                const now = performance.now();
+                const dt = now - lastTime;
+                const drawn = lastDrawn - lastLineCount;
+                if (dt > 0 && drawn > 0) {
+                    let actualLPS = drawn / (dt / 1000);
+                    if (actualLPS < 15) linesPerSecond = Math.max(2, linesPerSecond - 2);
+                    else if (actualLPS > 30) linesPerSecond = Math.min(100, linesPerSecond + 5);
+                    worker.postMessage({ type: 'setLPS', linesPerSecond });
+                }
+                lastTime = now;
+                lastLineCount = lastDrawn;
+                if (e.data.finished) {
+                    worker.terminate();
+                }
+            } else if (e.data.type === 'done') {
+                worker.terminate();
+            }
+        };
     }
 
     worker.onmessage = function(e) {
