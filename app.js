@@ -7,8 +7,10 @@ const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const uploadInput = document.getElementById('imageUpload');
 const generateButton = document.getElementById('generate');
+
 const colorInput = document.getElementById('color');
 const thicknessInput = document.getElementById('thickness');
+const linesInput = document.getElementById('lines');
 
 let image = new Image();
 let imageLoaded = false;
@@ -40,11 +42,12 @@ function handleImageUpload(event) {
     }
 }
 
+
 function drawStringArt() {
     if (!imageLoaded) return;
 
     const points = 120; // 釘點數量
-    const lines = 800;  // 總連線數
+    const lines = parseInt(linesInput.value, 10) || 800;  // 總連線數
     const color = colorInput.value || '#0074D9';
     const lineWidth = parseInt(thicknessInput.value, 10) || 1;
 
