@@ -70,7 +70,7 @@ self.onmessage = function(e) {
                 }
             }
             if (bestJ === -1) break;
-            // 更新累積灰度
+            // 更新:累積灰度
             const key = lastNail < bestJ ? `${lastNail}-${bestJ}` : `${bestJ}-${lastNail}`;
             for (const [x, y] of pixelPaths[key]) {
                 let idx = y * width + x;
