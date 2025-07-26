@@ -47,6 +47,7 @@ function handleImageUpload(event) {
 
 
 
+
 function drawStringArt() {
     if (!imageLoaded) return;
 
@@ -56,6 +57,7 @@ function drawStringArt() {
     const lineWidth = parseFloat(thicknessInput.value) || 0.3;
     const linesPerSecond = 20;
     const interval = 1000 / linesPerSecond;
+    const maxRepeat = 3; // 同一釘點最多連續出現次數
 
     // 1. 取得圖片灰度資料
     // 先將圖片等比縮放繪製到暫存canvas
@@ -84,6 +86,22 @@ function drawStringArt() {
         gray[i] = 255 - (0.299 * r + 0.587 * g + 0.114 * b);
     }
 
+    // 邊緣檢測（簡單Sobel）
+    const edge = new Float32Array(gray.length);
+    const wImg = tempCanvas.width;
+    const hImg = tempCanvas.height;
+    for (let y = 1; y < hImg - 1; y++) {
+        for (let x = 1; x < wImg - 1; x++) {
+            const gx =
+                -gray[(y - 1) * wImg + (x - 1)] - 2 * gray[y * wImg + (x - 1)] - gray[(y + 1) * wImg + (x - 1)]
+                + gray[(y - 1) * wImg + (x + 1)] + 2 * gray[y * wImg + (x + 1)] + gray[(y + 1) * wImg + (x + 1)];
+            const gy =
+                -gray[(y - 1) * wImg + (x - 1)] - 2 * gray[(y - 1) * wImg + x] - gray[(y - 1) * wImg + (x + 1)]
+                + gray[(y + 1) * wImg + (x - 1)] + 2 * gray[(y + 1) * wImg + x] + gray[(y + 1) * wImg + (x + 1)];
+            edge[y * wImg + x] = Math.sqrt(gx * gx + gy * gy);
+        }
+    }
+
     // 2. 計算釘點座標
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
@@ -100,6 +118,7 @@ function drawStringArt() {
     // 3. 動畫繪製線條
     let current = 0;
     const usedLines = new Set();
+    let lastPoints = [];
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.strokeStyle = color;
@@ -115,9 +134,11 @@ function drawStringArt() {
             // 在所有釘點中尋找最佳下一點
             for (let j = 0; j < points; j++) {
                 if (j === current) continue;
+                // 限制同一釘點連續出現次數
+                if (lastPoints.filter(idx => idx === j).length >= maxRepeat) continue;
                 const key = current < j ? `${current}-${j}` : `${j}-${current}`;
                 if (usedLines.has(key)) continue; // 避免重複
-                // 計算這條線經過的像素灰度總和
+                // 計算這條線經過的像素灰度總和，邊緣像素加權
                 let score = 0;
                 const [x0, y0] = pointArray[current];
                 const [x1, y1] = pointArray[j];
@@ -126,7 +147,8 @@ function drawStringArt() {
                     const x = Math.round(x0 + (x1 - x0) * s / steps);
                     const y = Math.round(y0 + (y1 - y0) * s / steps);
                     if (x >= 0 && x < tempCanvas.width && y >= 0 && y < tempCanvas.height) {
-                        score += gray[y * tempCanvas.width + x];
+                        // 邊緣像素加權（邊緣加2倍）
+                        score += gray[y * tempCanvas.width + x] + edge[y * tempCanvas.width + x] * 2;
                     }
                 }
                 if (score > bestScore) {
@@ -152,6 +174,8 @@ function drawStringArt() {
                 }
             }
             usedLines.add(current < bestIdx ? `${current}-${bestIdx}` : `${bestIdx}-${current}`);
+            lastPoints.push(bestIdx);
+            if (lastPoints.length > maxRepeat) lastPoints.shift();
             current = bestIdx;
             l++;
             count++;
