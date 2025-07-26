@@ -57,7 +57,7 @@ function drawStringArt() {
     const lines = parseInt(linesInput.value, 10) || 800;  // 總連線數
     const color = colorInput.value || '#0074D9';
     const lineWidth = parseFloat(thicknessInput.value) || 0.3;
-    const linesPerSecond = 5;
+    const linesPerSecond = 20;
 
     // 1. 取得圖片灰度資料
     const tempCanvas = document.createElement('canvas');
