@@ -1,21 +1,17 @@
-// filepath: /string-art-image-generator/string-art-image-generator/src/app.js
-const canvas = document.createElement('canvas');
+
+// 取得 index.html 裡的元素
+const canvas = document.getElementById('artCanvas');
 const ctx = canvas.getContext('2d');
-document.body.appendChild(canvas);
+const uploadInput = document.getElementById('imageUpload');
+const generateButton = document.getElementById('generate');
+const colorInput = document.getElementById('color');
+const thicknessInput = document.getElementById('thickness');
 
-const uploadInput = document.createElement('input');
-uploadInput.type = 'file';
-uploadInput.accept = 'image/*';
-document.body.appendChild(uploadInput);
-
-const generateButton = document.createElement('button');
-generateButton.textContent = '生成字符串艺术';
-document.body.appendChild(generateButton);
+let image = new Image();
+let imageLoaded = false;
 
 uploadInput.addEventListener('change', handleImageUpload);
 generateButton.addEventListener('click', drawStringArt);
-
-let image = new Image();
 
 function handleImageUpload(event) {
     const file = event.target.files[0];
@@ -24,9 +20,17 @@ function handleImageUpload(event) {
         reader.onload = function(e) {
             image.src = e.target.result;
             image.onload = () => {
-                canvas.width = image.width;
-                canvas.height = image.height;
-                ctx.drawImage(image, 0, 0);
+                // 將圖片等比縮放到 canvas
+                const maxW = canvas.width;
+                const maxH = canvas.height;
+                let w = image.width;
+                let h = image.height;
+                const scale = Math.min(maxW / w, maxH / h, 1);
+                w = w * scale;
+                h = h * scale;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+                imageLoaded = true;
             };
         };
         reader.readAsDataURL(file);
@@ -34,15 +38,24 @@ function handleImageUpload(event) {
 }
 
 function drawStringArt() {
-    if (!image.src) return;
+    if (!imageLoaded) return;
 
-    const points = 100; // Number of points for string art
-    const step = 13; // Step for connecting points
-    const color = '#0074D9'; // Default color
-    const lineWidth = 1; // Default line width
+    const points = 100; // 可改為參數
+    const step = 13;
+    const color = colorInput.value || '#0074D9';
+    const lineWidth = parseInt(thicknessInput.value, 10) || 1;
 
+    // 重新繪製圖片
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, 0, 0);
+    // 圖片等比縮放居中
+    const maxW = canvas.width;
+    const maxH = canvas.height;
+    let w = image.width;
+    let h = image.height;
+    const scale = Math.min(maxW / w, maxH / h, 1);
+    w = w * scale;
+    h = h * scale;
+    ctx.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
 
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
