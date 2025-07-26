@@ -92,13 +92,14 @@ function drawStringArt() {
         if (gray > maxG) maxG = gray;
         origGray[i] = gray;
     }
-    // 線性拉伸到 [0,255]，再反相（讓黑線優先覆蓋暗部）
+    // S型曲線對比增強（sigmoid），再反相（讓黑線優先覆蓋暗部）
+    const CONTRAST = 10.0; // 越大對比越強，建議 5~15
+    const MID = 0.5; // S型曲線中點
     for (let i = 0; i < origGray.length; i++) {
         let norm = (origGray[i] - minG) / (maxG - minG + 1e-6); // [0,1]
         norm = Math.max(0, Math.min(1, norm));
-        // 可調整對比度（1.0=原始，>1增強，<1降低）
-        const CONTRAST = 1.3;
-        norm = Math.pow(norm, 1/CONTRAST); // gamma校正
+        // S型 sigmoid 曲線
+        norm = 1 / (1 + Math.exp(-CONTRAST * (norm - MID)));
         origGray[i] = 255 - norm * 255;
     }
 
