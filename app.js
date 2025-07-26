@@ -144,26 +144,47 @@ function drawStringArt() {
             (y / dsH) * svgH
         ];
     }
+    // 動畫繪製隊列
+    let drawQueue = [];
+    let drawing = false;
+    const DRAW_BATCH = 8; // 每幀繪製線條數
+
+    function drawNextBatch() {
+        if (drawQueue.length === 0) {
+            drawing = false;
+            return;
+        }
+        drawing = true;
+        for (let i = 0; i < DRAW_BATCH && drawQueue.length > 0; i++) {
+            const [a, b, colorType] = drawQueue.shift();
+            const [x1, y1] = mapToSVG(pointArray[a]);
+            const [x2, y2] = mapToSVG(pointArray[b]);
+            let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            // 反轉黑白顏色
+            line.setAttribute('stroke', colorType === 'black' ? '#fff' : '#111');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke-width', lineWidth);
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('opacity', 0.85);
+            svg.appendChild(line);
+        }
+        requestAnimationFrame(drawNextBatch);
+    }
+
     worker.onmessage = function(e) {
         if (e.data.type === 'progress') {
             const linesArr = e.data.lines;
+            // 將新線條加入繪製隊列
             for (let i = lastDrawn; i < linesArr.length; i++) {
-                const [a, b, colorType] = linesArr[i];
-                const [x1, y1] = mapToSVG(pointArray[a]);
-                const [x2, y2] = mapToSVG(pointArray[b]);
-                let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2);
-                line.setAttribute('y2', y2);
-                line.setAttribute('stroke', colorType === 'black' ? '#111' : '#fff');
-                line.setAttribute('stroke-width', lineWidth);
-                line.setAttribute('stroke-linecap', 'round');
-                line.setAttribute('opacity', 0.85);
-                svg.appendChild(line);
+                drawQueue.push(linesArr[i]);
             }
             lastDrawn = linesArr.length;
-            // 自適應速度調整
+            // 平滑啟動動畫
+            if (!drawing) drawNextBatch();
+            // 自適應速度調整（保留worker內部）
             const now = performance.now();
             const dt = now - lastTime;
             const drawn = lastDrawn - lastLineCount;
