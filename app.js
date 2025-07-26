@@ -150,10 +150,10 @@ function drawStringArt() {
         ];
     }
     // Canvas 動畫繪製隊列（累積式）
-        // let allLines = [];
-        // let lastDrawn = 0;
-        // let drawing = false;
-        // const DRAW_BATCH = 8;
+    let allLines = [];
+    let lastDrawn = 0;
+    let drawing = false;
+    const DRAW_BATCH = 8;
     // 2D 變換狀態
     let view = { scale: 1, offsetX: 0, offsetY: 0 };
     // 交互事件
