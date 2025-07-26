@@ -1,7 +1,13 @@
 // lineWorker.js
 // Web Worker for string art global greedy algorithm with line pixel path caching
 
+
+let globalState = null;
 self.onmessage = function(e) {
+    if (e.data.type === 'setLPS') {
+        if (globalState) globalState.linesPerSecond = e.data.linesPerSecond;
+        return;
+    }
     const { points, lines, width, height, pointArray, gray, linesPerSecond } = e.data;
     // 緩存所有線段像素路徑
     const pixelPaths = {};
@@ -15,35 +21,53 @@ self.onmessage = function(e) {
     let usedLines = new Set();
     let grayArr = new Float32Array(gray);
     let resultLines = [];
-    for (let l = 0; l < lines; l++) {
-        let bestScore = -Infinity;
-        let bestKey = null;
-        // 全局搜尋所有釘點對
-        for (let key in pixelPaths) {
-            if (usedLines.has(key)) continue;
-            let score = 0;
-            for (const [x, y] of pixelPaths[key]) {
-                score += grayArr[y * width + x];
+    let l = 0;
+    globalState = { linesPerSecond };
+    function step() {
+        let count = 0;
+        while (l < lines && count < globalState.linesPerSecond) {
+            let bestScore = -Infinity;
+            let bestKey = null;
+            let bestType = 'black';
+            // 全局搜尋所有釘點對，黑白線條都考慮
+            for (let key in pixelPaths) {
+                if (usedLines.has(key)) continue;
+                let scoreBlack = 0, scoreWhite = 0;
+                for (const [x, y] of pixelPaths[key]) {
+                    scoreBlack += grayArr[y * width + x];
+                    scoreWhite += (255 - grayArr[y * width + x]);
+                }
+                if (scoreBlack > bestScore) {
+                    bestScore = scoreBlack;
+                    bestKey = key;
+                    bestType = 'black';
+                }
+                if (scoreWhite > bestScore) {
+                    bestScore = scoreWhite;
+                    bestKey = key;
+                    bestType = 'white';
+                }
             }
-            if (score > bestScore) {
-                bestScore = score;
-                bestKey = key;
+            if (!bestKey) break;
+            // 更新灰度
+            for (const [x, y] of pixelPaths[bestKey]) {
+                if (bestType === 'black') {
+                    grayArr[y * width + x] = Math.max(0, grayArr[y * width + x] - 30);
+                } else {
+                    grayArr[y * width + x] = Math.min(255, grayArr[y * width + x] + 30);
+                }
             }
+            usedLines.add(bestKey);
+            const [i, j] = bestKey.split('-').map(Number);
+            resultLines.push([i, j, bestType]);
+            count++;
+            l++;
         }
-        if (!bestKey) break;
-        // 更新灰度
-        for (const [x, y] of pixelPaths[bestKey]) {
-            grayArr[y * width + x] = Math.max(0, grayArr[y * width + x] - 30);
-        }
-        usedLines.add(bestKey);
-        const [i, j] = bestKey.split('-').map(Number);
-        resultLines.push([i, j]);
-        // 每 linesPerSecond 條線回傳一次進度
-        if ((l + 1) % linesPerSecond === 0 || l === lines - 1) {
-            self.postMessage({ type: 'progress', lines: resultLines.slice(), finished: l === lines - 1 });
-        }
+        self.postMessage({ type: 'progress', lines: resultLines.slice(), finished: l === lines });
+        if (l < lines) setTimeout(step, 0);
+        else self.postMessage({ type: 'done', lines: resultLines });
     }
-    self.postMessage({ type: 'done', lines: resultLines });
+    step();
 };
 
 // Bresenham's line algorithm

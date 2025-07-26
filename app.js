@@ -50,14 +50,14 @@ function handleImageUpload(event) {
 
 
 
+
 function drawStringArt() {
     if (!imageLoaded) return;
 
-    const points = parseInt(pointsInput.value, 10) || 200; // 釘點數量
-    const lines = parseInt(linesInput.value, 10) || 800;  // 總連線數
+    const points = parseInt(pointsInput.value, 10) || 200;
+    const lines = parseInt(linesInput.value, 10) || 800;
     const color = colorInput.value || '#0074D9';
     const lineWidth = parseFloat(thicknessInput.value) || 0.3;
-    const linesPerSecond = 20;
 
     // 1. 取得圖片灰度資料
     const tempCanvas = document.createElement('canvas');
@@ -97,15 +97,28 @@ function drawStringArt() {
         ]);
     }
 
-    // 3. 啟動 Web Worker
+    // 畫灰度背景
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const bgImgData = ctx.createImageData(canvas.width, canvas.height);
+    for (let i = 0; i < gray.length; i++) {
+        const v = 255 - gray[i];
+        bgImgData.data[i * 4] = v;
+        bgImgData.data[i * 4 + 1] = v;
+        bgImgData.data[i * 4 + 2] = v;
+        bgImgData.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(bgImgData, 0, 0);
+
     ctx.save();
-    ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
     ctx.globalAlpha = 0.85;
 
     let lastDrawn = 0;
     let worker = new Worker('lineWorker.js');
+    // 自適應速度
+    let linesPerSecond = 20;
+    let lastTime = performance.now();
+    let lastLineCount = 0;
     worker.postMessage({
         points,
         lines,
@@ -117,16 +130,28 @@ function drawStringArt() {
     });
     worker.onmessage = function(e) {
         if (e.data.type === 'progress') {
-            // 只畫新增加的線
             const linesArr = e.data.lines;
             for (let i = lastDrawn; i < linesArr.length; i++) {
-                const [a, b] = linesArr[i];
+                const [a, b, colorType] = linesArr[i];
                 ctx.beginPath();
                 ctx.moveTo(pointArray[a][0], pointArray[a][1]);
                 ctx.lineTo(pointArray[b][0], pointArray[b][1]);
+                ctx.strokeStyle = colorType === 'black' ? '#111' : '#fff';
                 ctx.stroke();
             }
             lastDrawn = linesArr.length;
+            // 自適應速度調整
+            const now = performance.now();
+            const dt = now - lastTime;
+            const drawn = lastDrawn - lastLineCount;
+            if (dt > 0 && drawn > 0) {
+                let actualLPS = drawn / (dt / 1000);
+                if (actualLPS < 15) linesPerSecond = Math.max(2, linesPerSecond - 2);
+                else if (actualLPS > 30) linesPerSecond = Math.min(100, linesPerSecond + 5);
+                worker.postMessage({ type: 'setLPS', linesPerSecond });
+            }
+            lastTime = now;
+            lastLineCount = lastDrawn;
             if (e.data.finished) {
                 ctx.restore();
                 worker.terminate();
