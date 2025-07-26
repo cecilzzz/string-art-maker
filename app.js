@@ -10,7 +10,9 @@ const generateButton = document.getElementById('generate');
 
 const colorInput = document.getElementById('color');
 const thicknessInput = document.getElementById('thickness');
+
 const linesInput = document.getElementById('lines');
+const pointsInput = document.getElementById('points');
 
 let image = new Image();
 let imageLoaded = false;
@@ -43,10 +45,11 @@ function handleImageUpload(event) {
 }
 
 
+
 function drawStringArt() {
     if (!imageLoaded) return;
 
-    const points = 120; // 釘點數量
+    const points = parseInt(pointsInput.value, 10) || 200; // 釘點數量
     const lines = parseInt(linesInput.value, 10) || 800;  // 總連線數
     const color = colorInput.value || '#0074D9';
     const lineWidth = parseInt(thicknessInput.value, 10) || 1;
