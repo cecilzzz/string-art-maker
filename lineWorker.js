@@ -27,23 +27,31 @@ self.onmessage = function(e) {
     let resultLines = [];
     let l = 0;
     globalState = { linesPerSecond };
+
+    // 單線頭貪婪：從起點出發
+    let lastNail = 0;
+    const minSkip = Math.floor(points * 0.05); // 最短線長限制（5%圓周）
+
     function step() {
         let count = 0;
         while (l < lines && count < globalState.linesPerSecond) {
             let bestScore = -Infinity;
-            let bestKey = null;
+            let bestJ = -1;
             let bestType = 'black';
-            // 全局搜尋所有釘點對，黑白線條都考慮
-            for (let key in pixelPaths) {
+            for (let j = 0; j < points; j++) {
+                if (j === lastNail) continue;
+                // 最短線長限制
+                let diff = Math.abs(j - lastNail);
+                let minDist = Math.min(diff, points - diff);
+                if (minDist < minSkip) continue;
+                const key = lastNail < j ? `${lastNail}-${j}` : `${j}-${lastNail}`;
                 if (usedLines.has(key)) continue;
                 let scoreBlack = 0, scoreWhite = 0;
-                // 差分評分：加上這根線後，與原圖的像素差距減少量
                 for (const [x, y] of pixelPaths[key]) {
                     let idx = y * width + x;
                     let before = accumArr[idx];
                     let afterBlack = Math.max(0, before - 30);
                     let afterWhite = Math.min(255, before + 30);
-                    // 黑線：加上後殘差減少量
                     let diffBefore = Math.abs(origArr[idx] - before);
                     let diffAfterBlack = Math.abs(origArr[idx] - afterBlack);
                     let diffAfterWhite = Math.abs(origArr[idx] - afterWhite);
@@ -52,18 +60,19 @@ self.onmessage = function(e) {
                 }
                 if (scoreBlack > bestScore) {
                     bestScore = scoreBlack;
-                    bestKey = key;
+                    bestJ = j;
                     bestType = 'black';
                 }
                 if (scoreWhite > bestScore) {
                     bestScore = scoreWhite;
-                    bestKey = key;
+                    bestJ = j;
                     bestType = 'white';
                 }
             }
-            if (!bestKey) break;
+            if (bestJ === -1) break;
             // 更新累積灰度
-            for (const [x, y] of pixelPaths[bestKey]) {
+            const key = lastNail < bestJ ? `${lastNail}-${bestJ}` : `${bestJ}-${lastNail}`;
+            for (const [x, y] of pixelPaths[key]) {
                 let idx = y * width + x;
                 if (bestType === 'black') {
                     accumArr[idx] = Math.max(0, accumArr[idx] - 30);
@@ -71,9 +80,9 @@ self.onmessage = function(e) {
                     accumArr[idx] = Math.min(255, accumArr[idx] + 30);
                 }
             }
-            usedLines.add(bestKey);
-            const [i, j] = bestKey.split('-').map(Number);
-            resultLines.push([i, j, bestType]);
+            usedLines.add(key);
+            resultLines.push([lastNail, bestJ, bestType]);
+            lastNail = bestJ;
             count++;
             l++;
         }
