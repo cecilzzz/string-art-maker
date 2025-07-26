@@ -49,6 +49,7 @@ function handleImageUpload(event) {
 
 
 
+
 function drawStringArt() {
     if (!imageLoaded) return;
 
@@ -56,11 +57,9 @@ function drawStringArt() {
     const lines = parseInt(linesInput.value, 10) || 800;  // 總連線數
     const color = colorInput.value || '#0074D9';
     const lineWidth = parseFloat(thicknessInput.value) || 0.3;
-    const linesPerSecond = 5; // 降低速率
-    const interval = 1000 / linesPerSecond;
+    const linesPerSecond = 5;
 
     // 1. 取得圖片灰度資料
-    // 先將圖片等比縮放繪製到暫存canvas
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
@@ -82,7 +81,6 @@ function drawStringArt() {
         const r = imgData.data[i * 4];
         const g = imgData.data[i * 4 + 1];
         const b = imgData.data[i * 4 + 2];
-        // 亮度反轉，讓暗部優先被線覆蓋
         gray[i] = 255 - (0.299 * r + 0.587 * g + 0.114 * b);
     }
 
@@ -99,70 +97,43 @@ function drawStringArt() {
         ]);
     }
 
-    // 3. 全局貪婪動畫繪製線條
+    // 3. 啟動 Web Worker
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
     ctx.globalAlpha = 0.85;
 
-    let l = 0;
-    const usedLines = new Set();
-    function drawStep() {
-        let count = 0;
-        while (l < lines && count < linesPerSecond) {
-            let bestScore = -Infinity;
-            let bestI = -1, bestJ = -1;
-            // 全局搜尋所有釘點對
-            for (let i = 0; i < points; i++) {
-                for (let j = i + 1; j < points; j++) {
-                    const key = `${i}-${j}`;
-                    if (usedLines.has(key)) continue;
-                    // 計算這條線經過的像素灰度總和
-                    let score = 0;
-                    const [x0, y0] = pointArray[i];
-                    const [x1, y1] = pointArray[j];
-                    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-                    for (let s = 0; s <= steps; s++) {
-                        const x = Math.round(x0 + (x1 - x0) * s / steps);
-                        const y = Math.round(y0 + (y1 - y0) * s / steps);
-                        if (x >= 0 && x < tempCanvas.width && y >= 0 && y < tempCanvas.height) {
-                            score += gray[y * tempCanvas.width + x];
-                        }
-                    }
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestI = i;
-                        bestJ = j;
-                    }
-                }
+    let lastDrawn = 0;
+    let worker = new Worker('lineWorker.js');
+    worker.postMessage({
+        points,
+        lines,
+        width: tempCanvas.width,
+        height: tempCanvas.height,
+        pointArray,
+        gray: Array.from(gray),
+        linesPerSecond
+    });
+    worker.onmessage = function(e) {
+        if (e.data.type === 'progress') {
+            // 只畫新增加的線
+            const linesArr = e.data.lines;
+            for (let i = lastDrawn; i < linesArr.length; i++) {
+                const [a, b] = linesArr[i];
+                ctx.beginPath();
+                ctx.moveTo(pointArray[a][0], pointArray[a][1]);
+                ctx.lineTo(pointArray[b][0], pointArray[b][1]);
+                ctx.stroke();
             }
-            if (bestI === -1 || bestJ === -1) break;
-            // 畫線
-            ctx.beginPath();
-            ctx.moveTo(pointArray[bestI][0], pointArray[bestI][1]);
-            ctx.lineTo(pointArray[bestJ][0], pointArray[bestJ][1]);
-            ctx.stroke();
-            // 線條覆蓋像素值減去固定值（如30）
-            const [x0, y0] = pointArray[bestI];
-            const [x1, y1] = pointArray[bestJ];
-            const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-            for (let s = 0; s <= steps; s++) {
-                const x = Math.round(x0 + (x1 - x0) * s / steps);
-                const y = Math.round(y0 + (y1 - y0) * s / steps);
-                if (x >= 0 && x < tempCanvas.width && y >= 0 && y < tempCanvas.height) {
-                    gray[y * tempCanvas.width + x] = Math.max(0, gray[y * tempCanvas.width + x] - 30);
-                }
+            lastDrawn = linesArr.length;
+            if (e.data.finished) {
+                ctx.restore();
+                worker.terminate();
             }
-            usedLines.add(`${bestI}-${bestJ}`);
-            l++;
-            count++;
-        }
-        if (l < lines) {
-            setTimeout(drawStep, interval);
-        } else {
+        } else if (e.data.type === 'done') {
             ctx.restore();
+            worker.terminate();
         }
-    }
-    drawStep();
+    };
 }
