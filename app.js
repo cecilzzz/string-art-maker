@@ -126,17 +126,19 @@ function drawStringArt() {
             if (mag > maxE) maxE = mag;
         }
     }
-    // 融合邊緣圖與灰度圖
-    const EDGE_WEIGHT = 0.7; // 輪廓強度 0~1
+    // 融合邊緣圖與灰度圖（細節保留）
+    const EDGE_WEIGHT = 0.25; // 輪廓強度 0~1，建議0.2~0.3
     const origGray = new Float32Array(width * height);
     for (let i = 0; i < gray.length; i++) {
         // 歸一化
         let gNorm = (gray[i] - minG) / (maxG - minG + 1e-6);
         let eNorm = (edge[i] - minE) / (maxE - minE + 1e-6);
+        // 邊緣圖做gamma壓縮，弱邊緣不會過亮
+        eNorm = Math.pow(eNorm, 0.5);
         // 融合
         let v = (1 - EDGE_WEIGHT) * gNorm + EDGE_WEIGHT * eNorm;
-        // S型曲線對比增強
-        const CONTRAST = 10.0;
+        // S型曲線對比增強（溫和）
+        const CONTRAST = 6.0;
         const MID = 0.5;
         v = 1 / (1 + Math.exp(-CONTRAST * (v - MID)));
         // 反相
