@@ -170,10 +170,12 @@ function drawStringArt() {
             }
             drawing = true;
             const end = Math.min(lastDrawn + DRAW_BATCH, allLines.length);
-            // D3 join所有已生成線條
-            g.selectAll('line.temp')
-                .data(allLines)
-                .join('line')
+            const batch = allLines.slice(lastDrawn, end);
+            // 只 append 新線條，不用 join，確保平滑增長
+            g.selectAll(null)
+                .data(batch)
+                .enter()
+                .append('line')
                 .attr('class', 'temp')
                 .attr('x1', d => mapToSVG(pointArray[d[0]])[0])
                 .attr('y1', d => mapToSVG(pointArray[d[0]])[1])
