@@ -97,19 +97,11 @@ function drawStringArt() {
         ]);
     }
 
-    // 畫灰度背景
+    // 畫純灰色背景
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const bgImgData = ctx.createImageData(canvas.width, canvas.height);
-    for (let i = 0; i < gray.length; i++) {
-        const v = 255 - gray[i];
-        bgImgData.data[i * 4] = v;
-        bgImgData.data[i * 4 + 1] = v;
-        bgImgData.data[i * 4 + 2] = v;
-        bgImgData.data[i * 4 + 3] = 255;
-    }
-    ctx.putImageData(bgImgData, 0, 0);
-
     ctx.save();
+    ctx.fillStyle = '#888';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = lineWidth;
     ctx.globalAlpha = 0.85;
 
